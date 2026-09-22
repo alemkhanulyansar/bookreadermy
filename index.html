@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FB2 Reader</title>
+    <style>
+        :root {
+            --bg: #f2f4f7;
+            --surface: #fff;
+            --text: #20242a;
+            --muted: #68717d;
+            --border: #dce1e7;
+            --accent: #346beb;
+            --reader-width: 780px;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font: 16px/1.6 Georgia, serif;
+        }
+        button, input { font: inherit; }
+        .toolbar {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            font-family: Arial, sans-serif;
+        }
+        .brand { margin-right: auto; font-weight: 700; }
+        .toolbar button, .file-label {
+            padding: 7px 12px;
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            background: var(--surface);
+            color: var(--text);
+            cursor: pointer;
+        }
+        .toolbar button:hover, .file-label:hover { border-color: var(--accent); }
+        .download-button {
+            padding: 7px 12px;
+            border: 1px solid var(--accent);
+            border-radius: 7px;
+            background: var(--accent);
+            color: white;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .download-button:hover { filter: brightness(.92); }
+        #fileInput { display: none; }
+        .layout {
+            display: grid;
+            grid-template-columns: 240px minmax(0, var(--reader-width));
+            gap: 24px;
+            justify-content: center;
+            padding: 28px 20px;
+        }
+        aside {
+            position: sticky;
+            top: 70px;
+            align-self: start;
+            max-height: calc(100vh - 95px);
+            overflow: auto;
+            padding: 16px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--surface);
+            font-family: Arial, sans-serif;
+        }
+        aside h2 { margin: 0 0 10px; font-size: 17px; }
+        #toc button {
+            display: block;
+            width: 100%;
+            padding: 6px 4px;
+            border: 0;
+            background: none;
+            color: var(--text);
+            text-align: left;
+            cursor: pointer;
+        }
+        #toc button:hover { color: var(--accent); }
+        article {
+            min-height: 70vh;
+            padding: 42px clamp(22px, 5vw, 70px);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--surface);
+            box-shadow: 0 3px 14px #1b273315;
+        }
+        #welcome { color: var(--muted); text-align: center; }
+        #book h1 { margin-top: 0; line-height: 1.2; }
+        #book h2 { margin-top: 2em; line-height: 1.3; }
+        #book p { margin: .8em 0; text-indent: 1.5em; }
+        #book .epigraph, #book .poem, #book .cite { margin: 1em 10%; color: var(--muted); }
+        #book .poem p { text-indent: 0; margin: .15em 0; }
+        #book .page { display: none; }
+        #book .page.active { display: block; }
+        .reader-controls {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 36px;
+            padding-top: 18px;
+            border-top: 1px solid var(--border);
+            font-family: Arial, sans-serif;
+        }
+        .reader-controls button {
+            padding: 8px 14px;
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            background: var(--surface);
+            color: var(--text);
+            cursor: pointer;
+        }
+        .reader-controls button:hover:not(:disabled) { border-color: var(--accent); }
+        .reader-controls button:disabled { cursor: not-allowed; opacity: .45; }
+        #progress { color: var(--muted); font-size: 14px; text-align: center; }
+        .empty { color: var(--muted); font-family: Arial, sans-serif; }
+        body.dark {
+            --bg: #17191c; --surface: #23262b; --text: #e8eaf0;
+            --muted: #a6adba; --border: #3a404a;
+        }
+        @media (max-width: 760px) {
+            .layout { display: block; padding: 12px; }
+            aside { position: static; max-height: 180px; margin-bottom: 12px; }
+            article { padding: 28px 20px; }
+            .toolbar { flex-wrap: wrap; padding: 10px; }
+            .brand { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <header class="toolbar">
+        <span class="brand">📖 FB2 Reader</span>
+        <label class="file-label" for="fileInput">Открыть FB2</label>
+        <input id="fileInput" type="file" accept=".fb2,application/xml,text/xml">
+        <a class="download-button" href="FB2%20Reader%20Setup%201.0.0.exe" download>
+            Скачать программу
+        </a>
+        <button id="decrease" type="button" title="Уменьшить шрифт">A−</button>
+        <button id="increase" type="button" title="Увеличить шрифт">A+</button>
+        <button id="theme" type="button">Тёмная тема</button>
+    </header>
+
+    <main class="layout">
+        <aside>
+            <h2>Оглавление</h2>
+            <nav id="toc"><span class="empty">Сначала откройте книгу</span></nav>
+        </aside>
+        <article id="book">
+            <div id="welcome">
+                <h1>Откройте книгу в формате FB2</h1>
+                <p>Нажмите «Открыть FB2» или перетащите файл на эту страницу.</p>
+            </div>
+        </article>
+    </main>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const book = document.getElementById('book');
+        const toc = document.getElementById('toc');
+        let fontSize = 18;
+        let pages = [];
+        let currentPage = 0;
+
+        fileInput.addEventListener('change', event => {
+            const file = event.target.files[0];
+            if (file) openBook(file);
+        });
+
+        document.addEventListener('dragover', event => event.preventDefault());
+        document.addEventListener('drop', event => {
+            event.preventDefault();
+            const file = event.dataTransfer.files[0];
+            if (file) openBook(file);
+        });
+
+        document.getElementById('increase').addEventListener('click', () => {
+            fontSize = Math.min(fontSize + 2, 32);
+            book.style.fontSize = fontSize + 'px';
+        });
+        document.getElementById('decrease').addEventListener('click', () => {
+            fontSize = Math.max(fontSize - 2, 12);
+            book.style.fontSize = fontSize + 'px';
+        });
+        document.getElementById('theme').addEventListener('click', () => {
+            document.body.classList.toggle('dark');
+        });
+        document.addEventListener('keydown', event => {
+            if (event.key === 'ArrowLeft') showPage(currentPage - 1);
+            if (event.key === 'ArrowRight') showPage(currentPage + 1);
+        });
+
+        function openBook(file) {
+            if (!/\.fb2$/i.test(file.name)) {
+                showError('Выберите файл с расширением .fb2.');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = () => parseBook(String(reader.result));
+            reader.onerror = () => showError('Не удалось прочитать файл.');
+            reader.readAsText(file, 'UTF-8');
+        }
+
+        function parseBook(xmlText) {
+            const xml = new DOMParser().parseFromString(xmlText, 'application/xml');
+            if (xml.querySelector('parsererror')) {
+                showError('Файл FB2 содержит ошибку XML и не может быть открыт.');
+                return;
+            }
+            const title = textOf(xml.querySelector('book-title')) || 'Без названия';
+            const author = [...xml.querySelectorAll('author')].map(authorNode =>
+                ['first-name', 'middle-name', 'last-name']
+                    .map(tag => textOf(authorNode.querySelector(tag))).filter(Boolean).join(' ')
+            ).filter(Boolean).join(', ');
+            const sections = [...xml.querySelectorAll('body > section')];
+            book.innerHTML = '';
+            pages = [];
+            currentPage = 0;
+            const titlePage = document.createElement('section');
+            titlePage.className = 'page';
+            const heading = document.createElement('h1');
+            heading.textContent = title;
+            titlePage.append(heading);
+            if (author) {
+                const byline = document.createElement('p');
+                byline.className = 'empty';
+                byline.textContent = author;
+                titlePage.append(byline);
+            }
+            book.append(titlePage);
+            pages.push(titlePage);
+            toc.innerHTML = '';
+            sections.forEach((section, index) => {
+                const id = 'section-' + index;
+                const page = document.createElement('section');
+                page.className = 'page';
+                page.id = id;
+                page.append(sectionToHtml(section, id));
+                book.append(page);
+                pages.push(page);
+                const headingNode = section.querySelector(':scope > title');
+                if (headingNode) {
+                    const link = document.createElement('button');
+                    link.textContent = textOf(headingNode);
+                    link.addEventListener('click', () =>
+                        showPage(index + 1)
+                    );
+                    toc.append(link);
+                }
+            });
+            if (!sections.length) {
+                showError('В книге не найдено ни одной главы.');
+                return;
+            }
+            const controls = document.createElement('div');
+            controls.className = 'reader-controls';
+            controls.innerHTML = '<button id="previousPage" type="button">← Назад</button>' +
+                '<span id="progress"></span>' +
+                '<button id="nextPage" type="button">Вперёд →</button>';
+            book.append(controls);
+            document.getElementById('previousPage').addEventListener('click', () => showPage(currentPage - 1));
+            document.getElementById('nextPage').addEventListener('click', () => showPage(currentPage + 1));
+            showPage(0);
+        }
+
+        function sectionToHtml(section, id) {
+            const wrapper = document.createElement('section');
+            const title = section.querySelector(':scope > title');
+            if (title) {
+                const heading = document.createElement('h2');
+                heading.textContent = textOf(title);
+                wrapper.append(heading);
+            }
+            [...section.children].forEach(node => {
+                if (node === title || node.tagName.toLowerCase() === 'section') return;
+                const element = document.createElement(node.tagName.toLowerCase() === 'poem' ? 'div' : 'p');
+                if (node.tagName.toLowerCase() === 'poem') element.className = 'poem';
+                element.textContent = node.textContent.trim();
+                if (element.textContent) wrapper.append(element);
+            });
+            [...section.children].filter(node => node.tagName.toLowerCase() === 'section')
+                .forEach((child, index) => wrapper.append(sectionToHtml(child, id + '-' + index)));
+            return wrapper;
+        }
+
+        function showPage(pageIndex) {
+            if (!pages.length || pageIndex < 0 || pageIndex >= pages.length) return;
+            currentPage = pageIndex;
+            pages.forEach((page, index) => page.classList.toggle('active', index === currentPage));
+            const progress = document.getElementById('progress');
+            const previous = document.getElementById('previousPage');
+            const next = document.getElementById('nextPage');
+            if (progress) progress.textContent = `${currentPage + 1} из ${pages.length}`;
+            if (previous) previous.disabled = currentPage === 0;
+            if (next) next.disabled = currentPage === pages.length - 1;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function textOf(node) {
+            return node ? node.textContent.trim().replace(/\s+/g, ' ') : '';
+        }
+        function showError(message) {
+            book.innerHTML = '<p class="empty"></p>';
+            book.firstChild.textContent = message;
+        }
+    </script>
+</body>
+</html>
